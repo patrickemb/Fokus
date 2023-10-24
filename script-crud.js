@@ -6,20 +6,48 @@ const formLabel = document.querySelector('.app__form-label')
 
 const cancelformTaskBtn = document.querySelector('.app__form-footer__button--cancel')
 
+const taskAtiveDescription = document.querySelector('.app__section-active-task-description')
+
 const textarea = document.querySelector('.app__form-textarea')
 
 const btnCancelar = document.querySelector('.app__form-footer__button--cancel')
 
-let tarefas = []
+const localStorageTarefas = localStorage.getItem('tarefas')
 
-const taskIconSvg = `<svg class="app_section-task-icon-status" width="24" height="24" viewBox="0 0 24 24"
-fill="none" xmlns="http://www.w3.org/2000/svg">
-<circle cx="12" cy="12" r="12" 
-    fill="#FFF" />
-<path
-    d="M9 16.1719L19.5938 5.57812L21 6.98438L9 18.9844L3.42188 13.4062L4.82812 12L19 16.17192"
-    fill="#01080E" />
-</svg>`
+let tarefas = localStorageTarefas ? JSON.parse(localStorageTarefas) : []
+
+const taskIconSvg = `
+<svg class="app__section-task-icon-status" width="24" height="24" viewBox="0 0 24 24"
+    fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="12" fill="#FFF" />
+    <path
+        d="M9 16.1719L19.5938 5.57812L21 6.98438L9 18.9844L3.42188 13.4062L4.82812 12L9 16.1719Z"
+        fill="#01080E" />
+</
+`
+
+let tarefaSelecionada = null
+let itemTarefaSelecionada = null
+
+const selecionaTarefa = (tarefa, elemento) => {
+
+document.querySelectorAll('.app__section-task-list-item-active').forEach(function (button) {
+    button.classList.remove('app__section-task-list-item-active')
+})
+
+if (tarefaSelecionada == tarefa) {
+    taskAtiveDescription.textContent = null
+    itemTarefaSelecionada = null
+    tarefaSelecionada = null
+    return
+}
+
+    tarefaSelecionada = tarefa
+    itemTarefaSelecionada = elemento
+    taskAtiveDescription.textContent = tarefa.descricao
+    elemento.classList.add('app__section-task-list-item-active')
+}
+
 
 const limparForm = () => {
     textarea.value = ''
@@ -38,6 +66,23 @@ function createTask(tarefa) {
 
     paragraph.textContent = tarefa.descricao
 
+    const button = document.createElement('button')
+
+    svgIcon.addEventListener('click', (event) => {
+        event.stopPropagation()
+        button.setAttribute('disable', true)
+        li.classList.add('app__section-task-list-item-complete')
+    })
+
+    if(tarefa.concluida) {
+        button.setAttribute('disable', true)
+        li.classList.add('app__section-task-list-item-complete')
+    }
+
+    li.onclick = () => {
+        selecionaTarefa(tarefa, li)
+    }
+
     li.appendChild(svgIcon)
     li.appendChild(paragraph)
 
@@ -54,6 +99,10 @@ toggleFormTaskBtn.addEventListener('click', () => {
     formTask.classList.toggle('hidden')
 })
 
+const updateLocalStorage = () => {
+    localStorage.setItem('tarefas', JSON.stringify(tarefas))
+}
+
 formTask.addEventListener('submit', (evento) => {
     evento.preventDefault()
     const task = {
@@ -64,6 +113,7 @@ formTask.addEventListener('submit', (evento) => {
     const taskItem = createTask(task)
     taskListContainer.appendChild(taskItem)
 
+    updateLocalStorage()
     limparForm()
 })
 
