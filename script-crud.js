@@ -12,8 +12,12 @@ const textarea = document.querySelector('.app__form-textarea')
 
 const btnCancelar = document.querySelector('.app__form-footer__button--cancel')
 
-const localStorageTarefas = localStorage.getItem('tarefas')
+const btnDeletar = document.querySelector('.app__form-footer__button--delete')
 
+const btnRemoveConcluidas = document.querySelector('#btn-remover-concluidas')
+const btnRemoveTodas = document.querySelector('#btn-remover-todas')
+
+const localStorageTarefas = localStorage.getItem('tarefas')
 let tarefas = localStorageTarefas ? JSON.parse(localStorageTarefas) : []
 
 const taskIconSvg = `
@@ -25,33 +29,52 @@ const taskIconSvg = `
         fill="#01080E" />
 </
 `
-
 let tarefaSelecionada = null
 let itemTarefaSelecionada = null
 
+let tarefaEmEdicao = null
+let paragraphEmEdicao = null
+
 const selecionaTarefa = (tarefa, elemento) => {
+    if(tarefa.concluida){
+        return
+    }
 
-document.querySelectorAll('.app__section-task-list-item-active').forEach(function (button) {
-    button.classList.remove('app__section-task-list-item-active')
-})
-
-if (tarefaSelecionada == tarefa) {
-    taskAtiveDescription.textContent = null
-    itemTarefaSelecionada = null
-    tarefaSelecionada = null
-    return
-}
-
+    document.querySelectorAll('.app__section-task-list-item-active').forEach(function (button) {
+        button.classList.remove('app__section-task-list-item-active')
+    })
+    
+    if (tarefaSelecionada == tarefa) {
+        taskAtiveDescription.textContent = null
+        itemTarefaSelecionada = null
+        tarefaSelecionada = null
+        return
+    }
+    
     tarefaSelecionada = tarefa
     itemTarefaSelecionada = elemento
     taskAtiveDescription.textContent = tarefa.descricao
     elemento.classList.add('app__section-task-list-item-active')
 }
 
-
 const limparForm = () => {
+    tarefaEmEdicao = null
+    paragraphEmEdicao = null
     textarea.value = ''
     formTask.classList.add('hidden')
+}
+
+const selecionaTarefaParaEditar = (tarefa, elemento) => {
+    if (tarefaEmEdicao == tarefa) {
+        limparForm()
+        return
+    }
+
+    formLabel.textConten = 'Editando tarefa'
+    tarefaEmEdicao = tarefa
+    paragraphEmEdicao = elemento
+    textarea.value = tarefa.descricao
+    formTask.classList.remove('hidden')
 }
 
 function createTask(tarefa) {
@@ -67,11 +90,31 @@ function createTask(tarefa) {
     paragraph.textContent = tarefa.descricao
 
     const button = document.createElement('button')
+    button.classList.add('app_button-edit')
+
+    const editIcon = document.createElement('img')
+    editIcon.setAttribute('src','./imagens/edit.png')
+
+    button.appendChild(editIcon)
+
+    button.addEventListener('click', (event) => {
+        event.stopPropagation()
+        selecionaTarefaParaEditar(tarefa, paragraph)
+    })
+
+    li.onclick = () => {
+        selecionaTarefa(tarefa, li)
+    }
 
     svgIcon.addEventListener('click', (event) => {
-        event.stopPropagation()
-        button.setAttribute('disable', true)
-        li.classList.add('app__section-task-list-item-complete')
+        if (tarefa == tarefaSelecionada) {
+            event.stopPropagation()
+            button.setAttribute('disable', true)
+            li.classList.add('app__section-task-list-item-complete')
+            tarefaSelecionada.concluida = true
+            updateLocalStorage()
+        }
+        
     })
 
     if(tarefa.concluida) {
@@ -79,13 +122,11 @@ function createTask(tarefa) {
         li.classList.add('app__section-task-list-item-complete')
     }
 
-    li.onclick = () => {
-        selecionaTarefa(tarefa, li)
-    }
-
+    
     li.appendChild(svgIcon)
     li.appendChild(paragraph)
-
+    li.appendChild(button)
+    
     return li
 }
 
@@ -93,6 +134,48 @@ tarefas.forEach(task => {
     const taskItem = createTask(task)
     taskListContainer.appendChild(taskItem)
 })
+
+cancelformTaskBtn.addEventListener('click', () => {
+    formTask.classList.add('hidden')
+})
+
+btnCancelar.addEventListener('click', limparForm)
+
+btnDeletar.addEventListener('click', () => {
+    if (tarefaSelecionada) {
+        const index = tarefas.indexOf(tarefaSelecionada)
+
+        if(index !== -1) {
+            tarefas.splice(index, 1)
+        }
+
+        itemTarefaSelecionada.remove()
+        tarefas.filter(t=> t!= tarefaSelecionada)
+        itemTarefaSelecionada = null
+        tarefaSelecionada = null
+    }
+    updateLocalStorage()
+    limparForm()
+})
+
+const removerTarefas = (somenteConcluidas) => {
+    const seletor = somenteConcluidas ? '.app__section-task-list-item-complete' : '.app__section-task-list-item'
+    document.querySelectorAll(seletor).forEach((element) => {
+        element.remove();
+    });
+
+    tarefas = somenteConcluidas ? tarefas.filter(t => !t.concluida) : []
+    updateLocalStorage()
+}
+
+btnRemoveConcluidas.addEventListener("click", () => {
+    removerTarefas(true);
+})
+
+btnRemoveTodas.addEventListener("click", () => {
+    removerTarefas(false);
+})
+
 
 toggleFormTaskBtn.addEventListener('click', () => {
     formLabel.textContent = 'Adicionando tarefa'
@@ -105,20 +188,33 @@ const updateLocalStorage = () => {
 
 formTask.addEventListener('submit', (evento) => {
     evento.preventDefault()
+    if (tarefaEmEdicao) {
+        tarefaEmEdicao.descricao = textarea.value
+        paragraphEmEdicao.textContent = textarea.value
+    } else {
+
     const task = {
         descricao: textarea.value,
         concluida: false
     }
+
     tarefas.push(task)
     const taskItem = createTask(task)
     taskListContainer.appendChild(taskItem)
+    }
 
     updateLocalStorage()
     limparForm()
 })
 
-cancelformTaskBtn.addEventListener('click', () => {
-    formTask.classList.add('hidden')
-})
+document.addEventListener('TarefaFinalizada', function (e) {
+    if (tarefaSelecionada) {
+        tarefaSelecionada.concluida = true
+        itemTarefaSelecionada.classList.add('app__section-task-list-item-complete')
+        itemTarefaSelecionada.querySelector('button').setAttribute('disabled', true)
+        updateLocalStorage()
+    }
+});
 
-btnCancelar.addEventListener('click', limparForm)
+
+
